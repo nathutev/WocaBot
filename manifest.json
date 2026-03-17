@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "WocaBot by nath.utev",
+  "version": "1.0",
+  "description": "🐝",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.wocabee.app/*"
+      ],
+      "js": [
+        "app.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "inject.js"
+      ],
+      "matches": [
+        "*://*.wocabee.app/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

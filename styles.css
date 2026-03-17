@@ -1,0 +1,52 @@
+
+#wb-auto-panel {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 200px;
+    background: #2c3e50;
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 999999;
+    font-family: sans-serif;
+    overflow: hidden;
+}
+
+.wb-auto-header {
+    background: #34495e;
+    padding: 10px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #455a64;
+}
+
+.wb-auto-body {
+    padding: 10px;
+}
+
+.wb-auto-body label {
+    display: block;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.wb-auto-speed {
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.wb-auto-speed input {
+    background: #34495e;
+    border: 1px solid #455a64;
+    color: white;
+    padding: 2px;
+    border-radius: 4px;
+}
+
+#wb-auto-status {
+    font-size: 12px;
+    color: #bdc3c7;
+    margin-top: 5px;
+    font-style: italic;
+}
