@@ -22,7 +22,7 @@ Tento nástroj slouží k usnadnění práce, ale používejte ho s rozmyslem.
 
 V konzoli se po každém načtení strránky objevuje hláška: `WARNING: Do not run any scripts. Otherwise your WocaBee account will be blocked.` Tato hláška má absolutně nulovou funkčnost a slouží pouze k odrazení uživatelů.
 
-
-
-Pro chyby využívejte sekci Issues nebo rozšiřujte projekt Pull requestama.
 ---
+
+**Pro chyby využívejte sekci Issues nebo rozšiřujte projekt Pull requestama.**
+
