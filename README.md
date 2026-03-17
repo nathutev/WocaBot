@@ -3,7 +3,7 @@
 WocaBot je rozšíření pro Google Chrome prohlížeč, které automatizuje vyplňování slovíček v aplikaci **WocaBee**. Pomáhá šetřit čas při rutinním klikání a efektivně sbírat WocaPoints.
 
 ## ✨
-*   **Automatické řešení:** Podporuje většinu typů cvičení (Překlad, Výběr z možností, Doplňování písmen, Pexeso, Najdi pár, Padající slova, Výběr obrázku).
+*   **Automatické řešení:** Podporuje většinu typů cvičení.
 *   **Inteligentní detekce:** Bot automaticky rozpozná typ cvičení a proklikává i úvodní/úspěšné obrazovky.
 
 ## 🛠️ Instalace
