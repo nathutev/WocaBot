@@ -244,7 +244,7 @@
             const pattern = patternEl ? patternEl.innerText.trim() : null;
             if (pattern && wordsData) {
                 // "en_l_ch" -> "endlich"
-                const regex = new RegExp('^' + pattern.replace(/_/g, '.') + '$', 'i');
+                const regex = new RegExp('^' + pattern.replace(/_/g, '.') + '$');
                 const match = wordsData.find(w => regex.test(w.word) || regex.test(w.translation));
                 if (match) {
                     return regex.test(match.word) ? match.word : match.translation;
@@ -331,7 +331,7 @@
                 let availableChars = Array.from(document.querySelectorAll('#characters .char, #characters .keyboardChar, #characters .btn'))
                     .filter(c => c.offsetParent !== null && c.style.visibility !== 'hidden' && c.getAttribute('is_hidden') !== '1');
 
-                const btn = availableChars.find(c => c.innerText.trim().toLowerCase() === targetChar.toLowerCase());
+                const btn = availableChars.find(c => c.innerText.trim() === targetChar);
                 if (btn) {
                     realClick(btn);
                     await sleep(300);
