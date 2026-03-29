@@ -1,11 +1,22 @@
 (function () {
     let config = {
         enabled: false,
-        minDelay: 1000,
-        maxDelay: 2000,
+        minDelay: 100,
+        maxDelay: 200,
     };
 
     let wordsData = null;
+
+    // faster animations
+    const forceOpacity = document.createElement('style');
+    forceOpacity.innerHTML = `
+        * { 
+            opacity: 1 !important; 
+            visibility: visible !important; 
+        }
+    `;
+
+    document.head.appendChild(forceOpacity);
 
     // load config from storage if exists
     chrome.storage.local.get(['wb_enabled', 'wb_minDelay', 'wb_maxDelay'], (result) => {
@@ -40,12 +51,7 @@
             <div class="wb-auto-header">WocaBot</div>
             <div class="wb-auto-body">
                 <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> Aktivovat</label>
-                <!--<div class="wb-auto-speed">
-                    <span>Delay (ms):</span>
-                    <input type="number" id="wb-auto-min" value="${config.minDelay}" step="100" style="width: 60px;"> - 
-                    <input type="number" id="wb-auto-max" value="${config.maxDelay}" step="100" style="width: 60px;">
-                </div>-->
-                <div>
+            <div>
                 <div id="wb-auto-status">Načítání...</div>
                 <div id="wb-auto-debug" style="font-size:10px; color:#aaa; margin-top:5px; border-top:1px solid #444; padding-top:5px;"></div>
             </div>
@@ -58,15 +64,6 @@
             updateStatus(config.enabled ? 'Aktivní' : 'Neaktivní');
             if (config.enabled) mainLoop();
         });
-
-        const updateConfig = () => {
-            config.minDelay = parseInt(document.getElementById('wb-auto-min').value);
-            config.maxDelay = parseInt(document.getElementById('wb-auto-max').value);
-            chrome.storage.local.set({ wb_minDelay: config.minDelay, wb_maxDelay: config.maxDelay });
-        };
-
-        document.getElementById('wb-auto-min').addEventListener('change', updateConfig);
-        document.getElementById('wb-auto-max').addEventListener('change', updateConfig);
 
         if (config.enabled) mainLoop();
     }
@@ -87,6 +84,19 @@
 
     async function mainLoop() {
         if (!config.enabled) return;
+
+        let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
+        if (startPackageBtn) {
+            realClick(startPackageBtn.parentElement);
+        }
+
+        let progressValue = document.querySelector('#progressValue');
+
+        if (progressValue.textContent === '100%') {
+            let leaveBtn = document.querySelector('btn.btn-lg.btn-warning.btn-block');
+            realClick(leaveBtn);
+            mainLoop()
+        }
 
         try {
             await handleExercise();
@@ -128,6 +138,7 @@
                     nextBtn.click();
                     return;
                 }
+                
                 const runBtn = document.getElementById('introRun');
                 if (runBtn && runBtn.style.display !== 'none') {
                     updateStatus('Start balíčku...');
@@ -233,11 +244,13 @@
         if (wordId && wordsData) {
             wordData = wordsData.find(w => w.word_id === wordId);
         }
-/*
+
+        /*
         if (wordData) {
             console.log("wordData:", wordData);
         }
-*/
+        */
+
         // completeWord
         if (type === 'complete') {
             const patternEl = document.getElementById('completeWordAnswer');
