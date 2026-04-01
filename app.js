@@ -444,8 +444,7 @@
                 await sleep(400);
                 realClick(card2);
 
-                await sleep(600);
-                break;
+                await sleep(1000);
             }
         }
     }
@@ -453,5 +452,4 @@
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-
 })();
