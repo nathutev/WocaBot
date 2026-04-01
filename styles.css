@@ -1,4 +1,3 @@
-
 #wb-auto-panel {
     position: fixed;
     top: 10px;
@@ -13,6 +12,10 @@
     overflow: hidden;
 }
 
+#wb-auto-panel.wb-shrunk {
+    width: 35px;
+}
+
 .wb-auto-header {
     background: #34495e;
     padding: 10px;
@@ -21,14 +24,36 @@
     border-bottom: 1px solid #455a64;
 }
 
+#wb-auto-panel.wb-shrunk .wb-auto-header {
+    display: none;
+}
+
 .wb-auto-body {
     padding: 10px;
+}
+
+#wb-auto-panel.wb-shrunk .wb-auto-body {
+    padding: 5px;
 }
 
 .wb-auto-body label {
     display: block;
     margin-bottom: 10px;
     cursor: pointer;
+    white-space: nowrap;
+}
+
+#wb-auto-panel.wb-shrunk .wb-auto-body label {
+    margin-bottom: 5px;
+}
+
+#wb-auto-panel.wb-shrunk .wb-label-text {
+    display: none;
+}
+
+#wb-auto-panel.wb-shrunk #wb-auto-status,
+#wb-auto-panel.wb-shrunk #wb-auto-debug {
+    display: none;
 }
 
 .wb-auto-speed {

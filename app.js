@@ -1,6 +1,7 @@
 (function () {
     let config = {
         enabled: false,
+        shrink: false,
         minDelay: 100,
         maxDelay: 200,
     };
@@ -20,8 +21,9 @@
         observer.observe(document.body, { childList: true, subtree: true });
 
         // load config from storage if exists
-        chrome.storage.local.get(['wb_enabled', 'wb_minDelay', 'wb_maxDelay'], (result) => {
+        chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_minDelay', 'wb_maxDelay'], (result) => {
             if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
+            if (result.wb_shrink !== undefined) config.shrink = result.wb_shrink;
             if (result.wb_minDelay !== undefined) config.minDelay = result.wb_minDelay;
             if (result.wb_maxDelay !== undefined) config.maxDelay = result.wb_maxDelay;
             createUI();
@@ -61,10 +63,12 @@
         if (!document.body || document.getElementById('wb-auto-panel')) return;
         const ui = document.createElement('div');
         ui.id = 'wb-auto-panel';
+        if (config.shrink) ui.classList.add('wb-shrunk');
         ui.innerHTML = `
             <div class="wb-auto-header">WocaBot</div>
             <div class="wb-auto-body">
-                <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> Aktivovat</label>
+                <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> <span class="wb-label-text">Aktivovat</span></label>
+                <label><input type="checkbox" id="wb-auto-shrink" ${config.shrink ? 'checked' : ''}> <span class="wb-label-text">Zmenšit</span></label>
             <div>
                 <div id="wb-auto-status">Načítání...</div>
                 <div id="wb-auto-debug" style="font-size:10px; color:#aaa; margin-top:5px; border-top:1px solid #444; padding-top:5px;"></div>
@@ -77,6 +81,16 @@
             chrome.storage.local.set({ wb_enabled: config.enabled });
             updateStatus(config.enabled ? 'Aktivní' : 'Neaktivní');
             if (config.enabled) mainLoop();
+        });
+
+        document.getElementById('wb-auto-shrink').addEventListener('change', (e) => {
+            config.shrink = e.target.checked;
+            chrome.storage.local.set({ wb_shrink: config.shrink });
+            if (config.shrink) {
+                ui.classList.add('wb-shrunk');
+            } else {
+                ui.classList.remove('wb-shrunk');
+            }
         });
 
         if (config.enabled) mainLoop();
