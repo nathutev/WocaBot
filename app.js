@@ -162,29 +162,44 @@
 
         if (!active) {
             const intro = document.getElementById('intro');
-            if (intro && intro.style.display !== 'none') {
-                const nextBtn = document.getElementById('introNext');
-                if (nextBtn && nextBtn.style.display !== 'none') {
-                    updateStatus('Proklikávám...');
+            if (intro && intro.style.display !== 'none' && intro.offsetParent !== null) {
+                const nextBtn = document.getElementById('introNext') || document.getElementById('introRun');
+                if (nextBtn && nextBtn.style.display !== 'none' && nextBtn.offsetParent !== null) {
+                    updateStatus('Intro: Pokračuji...');
                     await sleep(getRandomDelay());
-                    nextBtn.click();
+                    realClick(nextBtn);
                     return;
                 }
 
-                const runBtn = document.getElementById('introRun');
-                if (runBtn && runBtn.style.display !== 'none') {
-                    updateStatus('Start balíčku...');
+                // Fallback: look for ANY visible button inside intro
+                const introButtons = Array.from(intro.querySelectorAll('.btn:not([disabled]), button:not([disabled])'))
+                    .filter(b => b.offsetParent !== null);
+                if (introButtons.length > 0) {
+                    const bestBtn = introButtons.find(b => b.innerText.toLowerCase().includes('dále') || b.innerText.toLowerCase().includes('spustit')) || introButtons[0];
+                    updateStatus('Intro: Klikám (auto)...');
                     await sleep(getRandomDelay());
-                    runBtn.click();
+                    realClick(bestBtn);
                     return;
                 }
             }
 
-            const successBtn = document.querySelector('.btn-success.btn-block:not([disabled])');
-            if (successBtn && successBtn.innerText.toLowerCase().includes('dále') && successBtn.offsetParent !== null) {
-                updateStatus('Pokračuji...');
+            const nextKeywords = ['dále', 'dale', 'další', 'dalsi', 'next', 'continue'];
+            const successBtn = document.querySelector('.btn-success:not([disabled]), .btn-primary:not([disabled]), .btn-block:not([disabled])');
+            if (successBtn && successBtn.offsetParent !== null) {
+                const text = successBtn.innerText.toLowerCase();
+                if (nextKeywords.some(kw => text.includes(kw))) {
+                    updateStatus('Pokračuji...');
+                    await sleep(getRandomDelay());
+                    realClick(successBtn);
+                    return;
+                }
+            }
+
+            const nextBtn = document.getElementById('nextBtn');
+            if (nextBtn && nextBtn.offsetParent !== null) {
+                updateStatus('Pokračuji (nextBtn)...');
                 await sleep(getRandomDelay());
-                successBtn.click();
+                realClick(nextBtn);
                 return;
             }
 
@@ -338,7 +353,7 @@
     function clickButton(id) {
         const el = document.getElementById(id);
         if (el && !el.disabled && el.offsetParent !== null) {
-            el.click();
+            realClick(el);
         }
     }
 
