@@ -6,13 +6,28 @@
     };
 
     let wordsData = null;
-
     let isRunning = false;
 
-    const observer = new MutationObserver(() => {
-        if (config.enabled && !isRunning) mainLoop();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    function init() {
+        if (!document.body) {
+            setTimeout(init, 100);
+            return;
+        }
+
+        const observer = new MutationObserver(() => {
+            if (config.enabled && !isRunning) mainLoop();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // load config from storage if exists
+        chrome.storage.local.get(['wb_enabled', 'wb_minDelay', 'wb_maxDelay'], (result) => {
+            if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
+            if (result.wb_minDelay !== undefined) config.minDelay = result.wb_minDelay;
+            if (result.wb_maxDelay !== undefined) config.maxDelay = result.wb_maxDelay;
+            createUI();
+            injectScript();
+        });
+    }
 
     // faster animations
     const forceOpacity = document.createElement('style');
@@ -22,17 +37,9 @@
             visibility: visible !important; 
         }
     `;
+    (document.head || document.documentElement).appendChild(forceOpacity);
 
-    document.head.appendChild(forceOpacity);
-
-    // load config from storage if exists
-    chrome.storage.local.get(['wb_enabled', 'wb_minDelay', 'wb_maxDelay'], (result) => {
-        if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
-        if (result.wb_minDelay !== undefined) config.minDelay = result.wb_minDelay;
-        if (result.wb_maxDelay !== undefined) config.maxDelay = result.wb_maxDelay;
-        createUI();
-        injectScript();
-    });
+    init();
 
     // data from script
     window.addEventListener("message", (event) => {
@@ -51,7 +58,7 @@
     }
 
     function createUI() {
-        if (document.getElementById('wb-auto-panel')) return;
+        if (!document.body || document.getElementById('wb-auto-panel')) return;
         const ui = document.createElement('div');
         ui.id = 'wb-auto-panel';
         ui.innerHTML = `
@@ -92,28 +99,31 @@
     async function mainLoop() {
         if (!config.enabled || isRunning) return;
         isRunning = true;
-
-        let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
-        if (startPackageBtn) {
-            realClick(startPackageBtn.parentElement);
-        }
-
-        let progressValue = document.querySelector('#progressValue');
-
-        if (progressValue.textContent === '100%') {
-            let leaveBtn = document.querySelector('btn.btn-lg.btn-warning.btn-block');
-            realClick(leaveBtn);
-            mainLoop()
-        }
-
+        
         try {
+            let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
+            if (startPackageBtn) {
+                realClick(startPackageBtn.parentElement);
+            }
+
+            let progressValue = document.querySelector('#progressValue');
+            if (progressValue && progressValue.textContent === '100%') {
+                let leaveBtn = document.querySelector('.btn.btn-lg.btn-warning.btn-block') || document.querySelector('button.btn-warning');
+                if (leaveBtn) {
+                    realClick(leaveBtn);
+                    isRunning = false;
+                    setTimeout(mainLoop, 1000);
+                    return;
+                }
+            }
+
             await handleExercise();
         } catch (e) {
             console.error('WocaBot error:', e);
             updateDebug('ERR: ' + e.message);
+        } finally {
+            isRunning = false;
         }
-
-        isRunning = false;
     }
 
     async function handleExercise() {
@@ -133,7 +143,7 @@
 
         let active = exercises.find(ex => {
             const el = document.getElementById(ex.id);
-            return el && el.style.display !== 'none';
+            return el && el.style.display !== 'none' && el.offsetParent !== null;
         });
 
         if (!active) {
@@ -146,7 +156,7 @@
                     nextBtn.click();
                     return;
                 }
-                
+
                 const runBtn = document.getElementById('introRun');
                 if (runBtn && runBtn.style.display !== 'none') {
                     updateStatus('Start balíčku...');
@@ -253,19 +263,13 @@
             wordData = wordsData.find(w => w.word_id === wordId);
         }
 
-        /*
-        if (wordData) {
-            console.log("wordData:", wordData);
-        }
-        */
-
         // completeWord
         if (type === 'complete') {
             const patternEl = document.getElementById('completeWordAnswer');
             const pattern = patternEl ? patternEl.innerText.trim() : null;
             if (pattern && wordsData) {
-                // "en_l_ch" -> "endlich"
-                const regex = new RegExp('^' + pattern.replace(/_/g, '.') + '$');
+                const regexStr = '^' + pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/_/g, '.') + '$';
+                const regex = new RegExp(regexStr);
                 const match = wordsData.find(w => regex.test(w.word) || regex.test(w.translation));
                 if (match) {
                     return regex.test(match.word) ? match.word : match.translation;
@@ -338,17 +342,13 @@
 
     async function handleCompleteWord(answer) {
         if (!answer) return;
-        let chars = Array.from(document.querySelectorAll('#characters .char, #characters .keyboardChar, #characters .btn'))
-            .filter(c => c.offsetParent !== null && c.style.visibility !== 'hidden' && c.getAttribute('is_hidden') !== '1');
-
-        if (chars.length === 0) return;
-
-        const pattern = document.getElementById('completeWordAnswer').innerText.trim();
+        const patternEl = document.getElementById('completeWordAnswer');
+        if (!patternEl) return;
+        const pattern = patternEl.innerText.trim();
 
         for (let i = 0; i < pattern.length; i++) {
             if (pattern[i] === '_') {
                 const targetChar = answer[i];
-                // refresh available chars
                 let availableChars = Array.from(document.querySelectorAll('#characters .char, #characters .keyboardChar, #characters .btn'))
                     .filter(c => c.offsetParent !== null && c.style.visibility !== 'hidden' && c.getAttribute('is_hidden') !== '1');
 
