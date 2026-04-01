@@ -7,6 +7,13 @@
 
     let wordsData = null;
 
+    let isRunning = false;
+
+    const observer = new MutationObserver(() => {
+        if (config.enabled && !isRunning) mainLoop();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     // faster animations
     const forceOpacity = document.createElement('style');
     forceOpacity.innerHTML = `
@@ -83,7 +90,8 @@
     }
 
     async function mainLoop() {
-        if (!config.enabled) return;
+        if (!config.enabled || isRunning) return;
+        isRunning = true;
 
         let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
         if (startPackageBtn) {
@@ -105,7 +113,7 @@
             updateDebug('ERR: ' + e.message);
         }
 
-        setTimeout(mainLoop, 1000);
+        isRunning = false;
     }
 
     async function handleExercise() {
