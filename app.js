@@ -367,10 +367,12 @@
             }
         }
 
-        if (type === 'choice' || type === 'oneOutOfMany' || type === 'chooseSpelling') {
+        if (['choice', 'oneOutOfMany', 'chooseSpelling', 'translate', 'translateFalling'].includes(type)) {
             let qId = 'ch_word';
             if (type === 'oneOutOfMany') qId = 'oneOutOfManyQuestionWord';
             else if (type === 'chooseSpelling') qId = 'cs_word';
+            else if (type === 'translate') qId = 'tw_word';
+            else if (type === 'translateFalling') qId = 'tfw_word';
             
             const questionEl = document.getElementById(qId);
             if (questionEl && wordsData) {
@@ -383,7 +385,13 @@
                     );
                 }
                 if (match) {
-                    return (match.word.toLowerCase() === question.toLowerCase()) ? match.translation : match.word;
+                    let q = question.toLowerCase();
+                    let t = match.translation.toLowerCase();
+                    
+                    if (q === t) {
+                        return match.word;
+                    }
+                    return match.translation;
                 }
             }
         }
