@@ -52,7 +52,8 @@
 }
 
 #wb-auto-panel.wb-shrunk #wb-auto-status,
-#wb-auto-panel.wb-shrunk #wb-auto-debug {
+#wb-auto-panel.wb-shrunk #wb-auto-debug,
+#wb-auto-panel.wb-shrunk #wb-speed-wrapper {
     display: none;
 }
 

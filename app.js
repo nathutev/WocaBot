@@ -64,7 +64,7 @@
             <div class="wb-auto-body">
                 <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> <span class="wb-label-text">Aktivovat</span></label>
                 <label><input type="checkbox" id="wb-auto-shrink" ${config.shrink ? 'checked' : ''}> <span class="wb-label-text">Zmenšit</span></label>
-                <div style="margin-top: 5px;">
+                <div class="wb-auto-speed" id="wb-speed-wrapper">
                     <span class="wb-label-text">Rychlost:</span>
                     <select id="wb-auto-speed" style="background:#333; color:#fff; border:1px solid #555; border-radius:3px; padding:2px;">
                         <option value="slow" ${config.speed === 'slow' ? 'selected' : ''}>Pomalá</option>
