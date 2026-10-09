@@ -357,8 +357,11 @@
             }
         }
 
-        if (type === 'choice' || type === 'oneOutOfMany') {
-            const qId = type === 'choice' ? 'ch_word' : 'oneOutOfManyQuestionWord';
+        if (type === 'choice' || type === 'oneOutOfMany' || type === 'chooseSpelling') {
+            let qId = 'ch_word';
+            if (type === 'oneOutOfMany') qId = 'oneOutOfManyQuestionWord';
+            else if (type === 'chooseSpelling') qId = 'cs_word';
+            
             const questionEl = document.getElementById(qId);
             if (questionEl && wordsData) {
                 const question = questionEl.innerText.trim();
@@ -393,10 +396,6 @@
                 return wordData.word;
             }
             return wordData.translation;
-        }
-        
-        if (type === 'chooseSpelling' && wordData) {
-            return wordData.word;
         }
 
         if (aWord) {
