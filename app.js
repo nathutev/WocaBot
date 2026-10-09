@@ -252,7 +252,7 @@
         updateStatus('Typ cvičení: ' + active.type);
 
         const answer = getAnswer(active.type);
-        if (!answer && !['pexeso', 'findPair', 'matchPair', 'choosePicture'].includes(active.type)) {
+        if (!answer && !['pexeso', 'findPair', 'matchPair', 'choosePicture', 'listenAndChoose'].includes(active.type)) {
             updateDebug('Odpověď nenalezena');
             return;
         }
@@ -284,7 +284,7 @@
                 handleChoice(answer, '#chooseWords .btn');
                 break;
             case 'listenAndChoose':
-                handleChoice(answer, '#listenAndChooseWords .btn');
+                clickButton('listenAndChooseSkipBtn');
                 break;
             case 'chooseSpelling':
                 handleChoice(answer, '#chooseSpellingWords .btn');
