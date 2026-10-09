@@ -2,8 +2,7 @@
     let config = {
         enabled: false,
         shrink: false,
-        minDelay: 100,
-        maxDelay: 200,
+        speed: 'medium' // 'slow', 'medium', 'fast'
     };
 
     let wordsData = null;
@@ -20,18 +19,15 @@
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
-        // load config from storage if exists
-        chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_minDelay', 'wb_maxDelay'], (result) => {
+        chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_speed'], (result) => {
             if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
             if (result.wb_shrink !== undefined) config.shrink = result.wb_shrink;
-            if (result.wb_minDelay !== undefined) config.minDelay = result.wb_minDelay;
-            if (result.wb_maxDelay !== undefined) config.maxDelay = result.wb_maxDelay;
+            if (result.wb_speed !== undefined) config.speed = result.wb_speed;
             createUI();
             injectScript();
         });
     }
 
-    // faster animations
     const forceOpacity = document.createElement('style');
     forceOpacity.innerHTML = `
         * { 
@@ -43,7 +39,6 @@
 
     init();
 
-    // data from script
     window.addEventListener("message", (event) => {
         if (event.source !== window) return;
         if (event.data.type && event.data.type === "WOCABEE_DATA") {
@@ -69,6 +64,14 @@
             <div class="wb-auto-body">
                 <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> <span class="wb-label-text">Aktivovat</span></label>
                 <label><input type="checkbox" id="wb-auto-shrink" ${config.shrink ? 'checked' : ''}> <span class="wb-label-text">Zmenšit</span></label>
+                <div style="margin-top: 5px;">
+                    <span class="wb-label-text">Rychlost:</span>
+                    <select id="wb-auto-speed" style="background:#333; color:#fff; border:1px solid #555; border-radius:3px; padding:2px;">
+                        <option value="slow" ${config.speed === 'slow' ? 'selected' : ''}>Pomalá</option>
+                        <option value="medium" ${config.speed === 'medium' ? 'selected' : ''}>Střední</option>
+                        <option value="fast" ${config.speed === 'fast' ? 'selected' : ''}>Rychlá</option>
+                    </select>
+                </div>
             <div>
                 <div id="wb-auto-status">Načítání...</div>
                 <div id="wb-auto-debug" style="font-size:10px; color:#aaa; margin-top:5px; border-top:1px solid #444; padding-top:5px;"></div>
@@ -93,6 +96,11 @@
             }
         });
 
+        document.getElementById('wb-auto-speed').addEventListener('change', (e) => {
+            config.speed = e.target.value;
+            chrome.storage.local.set({ wb_speed: config.speed });
+        });
+
         if (config.enabled) mainLoop();
     }
 
@@ -107,7 +115,10 @@
     }
 
     function getRandomDelay() {
-        return Math.floor(Math.random() * (config.maxDelay - config.minDelay + 1)) + config.minDelay;
+        let min = 600, max = 1200;
+        if (config.speed === 'slow') { min = 1500; max = 2500; }
+        else if (config.speed === 'fast') { min = 100; max = 300; }
+        return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
     async function mainLoop() {
@@ -152,7 +163,11 @@
             { id: 'findPair', type: 'findPair' },
             { id: 'oneOutOfMany', type: 'oneOutOfMany' },
             { id: 'transcribe', type: 'transcribe' },
-            { id: 'translateFallingWord', type: 'translateFalling' }
+            { id: 'translateFallingWord', type: 'translateFalling' },
+            { id: 'listenAndChoose', type: 'listenAndChoose' },
+            { id: 'chooseSpelling', type: 'chooseSpelling' },
+            { id: 'matchPair', type: 'matchPair' },
+            { id: 'arrangeWords', type: 'arrangeWords' }
         ];
 
         let active = exercises.find(ex => {
@@ -171,7 +186,6 @@
                     return;
                 }
 
-                // Fallback: look for ANY visible button inside intro
                 const introButtons = Array.from(intro.querySelectorAll('.btn:not([disabled]), button:not([disabled])'))
                     .filter(b => b.offsetParent !== null);
                 if (introButtons.length > 0) {
@@ -211,7 +225,7 @@
         updateStatus('Typ cvičení: ' + active.type);
 
         const answer = getAnswer(active.type);
-        if (!answer && active.type !== 'pexeso' && active.type !== 'findPair' && active.type !== 'choosePicture') {
+        if (!answer && !['pexeso', 'findPair', 'matchPair', 'choosePicture'].includes(active.type)) {
             updateDebug('Odpověď nenalezena');
             return;
         }
@@ -240,16 +254,25 @@
                 await handleCompleteWord(answer);
                 break;
             case 'choice':
-                handleChoice(answer);
+                handleChoice(answer, '#chooseWords .btn');
+                break;
+            case 'listenAndChoose':
+                handleChoice(answer, '#listenAndChooseWords .btn');
+                break;
+            case 'chooseSpelling':
+                handleChoice(answer, '#chooseSpellingWords .btn');
                 break;
             case 'pexeso':
                 await handlePexeso();
                 break;
             case 'oneOutOfMany':
-                handleOneOutOfMany(answer);
+                handleChoice(answer, '#oneOutOfManyWords .btn');
                 break;
             case 'findPair':
                 await handleFindPair();
+                break;
+            case 'matchPair':
+                await handleMatchPair();
                 break;
             case 'missing':
                 fillInput('missingWordAnswer', answer);
@@ -257,6 +280,9 @@
                 break;
             case 'choosePicture':
                 await handleChoosePicture();
+                break;
+            case 'arrangeWords':
+                await handleArrangeWords(answer);
                 break;
         }
     }
@@ -271,7 +297,6 @@
 
         if (correctImg) {
             updateDebug('Klikám na obrázek');
-
             realClick(correctImg);
             await sleep(200);
             realClick(correctImg);
@@ -292,7 +317,6 @@
             wordData = wordsData.find(w => w.word_id === wordId);
         }
 
-        // completeWord
         if (type === 'complete') {
             const patternEl = document.getElementById('completeWordAnswer');
             const pattern = patternEl ? patternEl.innerText.trim() : null;
@@ -322,6 +346,21 @@
                     return (match.word.toLowerCase() === question.toLowerCase()) ? match.translation : match.word;
                 }
             }
+        }
+
+        if (type === 'arrangeWords') {
+            const questionEl = document.getElementById('def-lang-sentence');
+            if (questionEl && wordsData) {
+                const question = questionEl.innerText.trim();
+                let match = wordsData.find(w => w.word === question || w.translation === question);
+                if (match) {
+                    return match.word === question ? match.translation : match.word;
+                }
+            }
+        }
+        
+        if (type === 'chooseSpelling' && wordData) {
+            return wordData.word;
         }
 
         if (aWord) {
@@ -357,16 +396,10 @@
         }
     }
 
-    function handleChoice(answer) {
-        const options = Array.from(document.querySelectorAll('#chooseWords .btn'));
+    function handleChoice(answer, selector) {
+        const options = Array.from(document.querySelectorAll(selector));
         const opt = options.find(o => o.innerText.trim().toLowerCase() === answer.toLowerCase());
-        if (opt) opt.click();
-    }
-
-    function handleOneOutOfMany(answer) {
-        const options = Array.from(document.querySelectorAll('#oneOutOfManyWords .btn'));
-        const opt = options.find(o => o.innerText.trim().toLowerCase() === answer.toLowerCase());
-        if (opt) opt.click();
+        if (opt) realClick(opt);
     }
 
     async function handleCompleteWord(answer) {
@@ -384,17 +417,16 @@
                 const btn = availableChars.find(c => c.innerText.trim() === targetChar);
                 if (btn) {
                     realClick(btn);
-                    await sleep(300);
+                    await sleep(150);
                 }
             }
         }
 
-        await sleep(500);
+        await sleep(300);
         clickButton('completeWordSubmitBtn');
     }
 
     async function handleFindPair() {
-        // visible active buttons
         const qWords = Array.from(document.querySelectorAll('#q_words .btn, .fp_q'))
             .filter(b => b.offsetParent !== null && !b.disabled && !b.classList.contains('btn-success-active'));
         const aWords = Array.from(document.querySelectorAll('#a_words .btn, .fp_a'))
@@ -404,16 +436,61 @@
 
         for (let i = 0; i < 3; i++) {
             const qBtn = qWords[i];
+            if (!qBtn) continue;
             const wId = qBtn.getAttribute('w_id');
             const aBtn = aWords.find(btn => btn.getAttribute('w_id') === wId);
 
-            if (qBtn && aBtn) {
+            if (aBtn) {
                 updateDebug('Spojuji slova');
                 realClick(qBtn);
-                await sleep(400);
+                await sleep(300);
                 realClick(aBtn);
+                await sleep(100);
             }
         }
+    }
+
+    async function handleMatchPair() {
+        const btns = Array.from(document.querySelectorAll('#matchPairWords .btn'))
+            .filter(b => b.offsetParent !== null && !b.disabled && !b.classList.contains('btn-success-active'));
+
+        let groups = {};
+        btns.forEach(b => {
+            const wId = b.getAttribute('w_id');
+            if (wId) {
+                if (!groups[wId]) groups[wId] = [];
+                groups[wId].push(b);
+            }
+        });
+
+        for (let wId in groups) {
+            if (groups[wId].length >= 2) {
+                updateDebug('Spojuji slova');
+                realClick(groups[wId][0]);
+                await sleep(300);
+                realClick(groups[wId][1]);
+                await sleep(100);
+            }
+        }
+    }
+
+    async function handleArrangeWords(answer) {
+        if (!answer) return;
+        const words = answer.split(' ');
+        const container = document.getElementById('sortableWords');
+        if (!container) return;
+
+        const items = Array.from(container.children);
+        
+        words.forEach(word => {
+            const item = items.find(el => el.innerText.trim() === word);
+            if (item) {
+                container.appendChild(item);
+            }
+        });
+        
+        await sleep(400);
+        clickButton('arrangeWordsSubmitBtn');
     }
 
     function realClick(el) {
@@ -435,7 +512,6 @@
         let groups = {};
         cards.forEach(card => {
             const wId = card.getAttribute('w_id');
-            // leave only available
             if (card.style.visibility !== 'hidden' && card.offsetParent !== null && card.getAttribute('marked') !== '1') {
                 if (!groups[wId]) groups[wId] = [];
                 groups[wId].push(card);
@@ -452,14 +528,14 @@
 
                 updateDebug('Otevírám pár');
                 realClick(card1);
-                await sleep(400);
+                await sleep(300);
                 realClick(card1);
-                await sleep(400);
+                await sleep(300);
                 realClick(card2);
-                await sleep(400);
+                await sleep(300);
                 realClick(card2);
 
-                await sleep(1000);
+                await sleep(800);
             }
         }
     }

@@ -12,6 +12,7 @@ WocaBot je rozšíření pro Google Chrome prohlížeč, které automatizuje vyp
 1. Přihlaste se do WocaBee a spusťte libovolný balíček slovíček.
 2. Na stránce se objeví ovládací panel bota v pravém horním rohu.
 3. Zaškrtněte **Aktivovat** a bot začne pracovat.
+4. Můžete si vybrat rychlost (Pomalá, Střední, Rychlá) podle toho, jak rychle chcete balíček splnit.
 
 ## ⚠️ Důležité upozornění
 Tento nástroj slouží k usnadnění práce, ale **používejte ho s rozmyslem**.
