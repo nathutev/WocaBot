@@ -284,7 +284,12 @@
                 handleChoice(answer, '#chooseWords .btn');
                 break;
             case 'listenAndChoose':
-                clickButton('listenAndChooseSkipBtn');
+                let skipBtn = document.getElementById('listenAndChooseSkipBtn');
+                if (skipBtn && skipBtn.offsetParent !== null) {
+                    realClick(skipBtn);
+                } else {
+                    handleChoice(answer, '#listenAndChooseWords .btn');
+                }
                 break;
             case 'chooseSpelling':
                 handleChoice(answer, '#chooseSpellingWords .btn');
