@@ -19,6 +19,11 @@
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
+        // Fallback safety interval in case style changes don't trigger the observer
+        setInterval(() => {
+            if (config.enabled && !isRunning) mainLoop();
+        }, 1000);
+
         chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_speed'], (result) => {
             if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
             if (result.wb_shrink !== undefined) config.shrink = result.wb_shrink;
