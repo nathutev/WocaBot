@@ -128,14 +128,41 @@
         try {
             let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
             if (startPackageBtn) {
-                realClick(startPackageBtn.parentElement);
+                let a = startPackageBtn.closest('a');
+                if (a && a.href) {
+                    window.location.href = a.href;
+                    return;
+                } else {
+                    realClick(startPackageBtn.parentElement || startPackageBtn);
+                }
             }
 
             let progressValue = document.querySelector('#progressValue');
-            if (progressValue && progressValue.textContent === '100%') {
-                let leaveBtn = document.querySelector('.btn.btn-lg.btn-warning.btn-block') || document.querySelector('button.btn-warning');
+            let is100 = progressValue && progressValue.textContent === '100%';
+            
+            // WocaBee sometimes uses a different element for progress
+            let diffDaysInfo = document.getElementById('diffDaysExtraWocaPointsInfo');
+            if (diffDaysInfo && diffDaysInfo.style.display !== 'none') is100 = true;
+            
+            let msgCompleted = document.getElementById('msgCompleted');
+            if (msgCompleted && msgCompleted.style.display !== 'none') is100 = true;
+
+            if (is100) {
+                let leaveBtnWrapper = document.getElementById('leaveBtnWrapper');
+                if (leaveBtnWrapper && leaveBtnWrapper.href) {
+                    window.location.href = leaveBtnWrapper.href;
+                    return;
+                }
+                
+                let leaveBtn = document.getElementById('leaveBtn') || document.querySelector('.btn.btn-lg.btn-warning.btn-block');
                 if (leaveBtn) {
-                    realClick(leaveBtn);
+                    let a = leaveBtn.closest('a');
+                    if (a && a.href) {
+                        window.location.href = a.href;
+                        return;
+                    } else {
+                        realClick(leaveBtn);
+                    }
                     isRunning = false;
                     setTimeout(mainLoop, 1000);
                     return;
