@@ -284,7 +284,7 @@
                 handleChoice(answer, '#chooseWords .btn');
                 break;
             case 'listenAndChoose':
-                clickButton('listenAndChooseSkipBtn');
+                handleChoice(answer, '#listenAndChooseWords .btn');
                 break;
             case 'chooseSpelling':
                 handleChoice(answer, '#chooseSpellingWords .btn');
@@ -385,6 +385,15 @@
                 }
             }
         }
+
+        if (type === 'listenAndChoose' && wordData) {
+            // Options are usually the translation. 
+            // We can determine which one by checking if aWord is the translation.
+            if (aWord && aWord.trim().toLowerCase() === wordData.translation.trim().toLowerCase()) {
+                return wordData.word;
+            }
+            return wordData.translation;
+        }
         
         if (type === 'chooseSpelling' && wordData) {
             return wordData.word;
@@ -424,8 +433,9 @@
     }
 
     function handleChoice(answer, selector) {
+        if (!answer) return;
         const options = Array.from(document.querySelectorAll(selector));
-        const opt = options.find(o => o.innerText.trim().toLowerCase() === answer.toLowerCase());
+        const opt = options.find(o => o.innerText.trim().toLowerCase() === answer.trim().toLowerCase());
         if (opt) realClick(opt);
     }
 
