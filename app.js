@@ -284,7 +284,7 @@
                 handleChoice(answer, '#chooseWords .btn');
                 break;
             case 'listenAndChoose':
-                handleChoice(answer, '#listenAndChooseWords .btn');
+                clickButton('listenAndChooseSkipBtn');
                 break;
             case 'chooseSpelling':
                 handleChoice(answer, '#chooseSpellingWords .btn');
