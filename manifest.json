@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WocaBot by nath.utev",
-  "version": "1.2",
+  "version": "3.0",
   "description": "🐝",
   "permissions": [
     "activeTab",

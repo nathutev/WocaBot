@@ -13,7 +13,19 @@
 }
 
 #wb-auto-panel.wb-shrunk {
-    width: 35px;
+    width: 23px;
+    height: 27px;
+    background-color: transparent !important;
+    opacity: 0.3 !important;
+    accent-color: black;
+}
+
+#wb-auto-panel.wb-shrunk label:has(#wb-auto-shrink) {
+  margin-top: -5px;
+}
+
+#wb-auto-panel.wb-shrunk #wb-auto-toggle, #wb-auto-panel.wb-shrunk #wb-auto-error {
+    display: none;
 }
 
 .wb-auto-header {
