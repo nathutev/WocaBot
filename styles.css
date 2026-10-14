@@ -53,20 +53,23 @@
 
 #wb-auto-panel.wb-shrunk #wb-auto-status,
 #wb-auto-panel.wb-shrunk #wb-auto-debug,
-#wb-auto-panel.wb-shrunk #wb-speed-wrapper {
+#wb-auto-panel.wb-shrunk #wb-speed-wrapper,
+#wb-auto-panel.wb-shrunk #wb-error-wrapper {
     display: none;
 }
 
-.wb-auto-speed {
+.wb-auto-speed,
+.wb-auto-error-rate {
     font-size: 12px;
     margin-bottom: 10px;
 }
 
-.wb-auto-speed input {
+.wb-auto-speed select,
+.wb-auto-error-rate input {
     background: #34495e;
     border: 1px solid #455a64;
     color: white;
-    padding: 2px;
+    padding: 2px 4px;
     border-radius: 4px;
 }
 

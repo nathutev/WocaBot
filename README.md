@@ -13,11 +13,12 @@ WocaBot je rozšíření pro Google Chrome prohlížeč, které automatizuje vyp
 2. Na stránce se objeví ovládací panel bota v pravém horním rohu.
 3. Zaškrtněte **Aktivovat** a bot začne pracovat.
 4. Můžete si vybrat rychlost (Pomalá, Střední, Rychlá) podle toho, jak rychle chcete balíček splnit.
+5. Můžete zapnout možnost **Dělat chyby** a nastavit procentuální šanci na chybu pro ještě přirozenější chování.
 
 ## ⚠️ Důležité upozornění
 Tento nástroj slouží k usnadnění práce, ale **používejte ho s rozmyslem**.
 
-V konzoli se po každém načtení strránky objevuje hláška: `WARNING: Do not run any scripts. Otherwise your WocaBee account will be blocked.` Tato hláška má absolutně nulovou funkčnost a slouží pouze k odrazení uživatelů.
+V konzoli se po každém načtení stránky objevuje hláška: `WARNING: Do not run any scripts. Otherwise your WocaBee account will be blocked.` Tato hláška má absolutně nulovou funkčnost a slouží pouze k odrazení uživatelů.
 
 ---
 

@@ -2,7 +2,9 @@
     let config = {
         enabled: false,
         shrink: false,
-        speed: 'medium' // 'slow', 'medium', 'fast'
+        speed: 'medium', // 'slow', 'medium', 'fast'
+        makeError: false,
+        errorRate: 15
     };
 
     let wordsData = null;
@@ -24,10 +26,12 @@
             if (config.enabled && !isRunning) mainLoop();
         }, 1000);
 
-        chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_speed'], (result) => {
+        chrome.storage.local.get(['wb_enabled', 'wb_shrink', 'wb_speed', 'wb_make_error', 'wb_error_rate'], (result) => {
             if (result.wb_enabled !== undefined) config.enabled = result.wb_enabled;
             if (result.wb_shrink !== undefined) config.shrink = result.wb_shrink;
             if (result.wb_speed !== undefined) config.speed = result.wb_speed;
+            if (result.wb_make_error !== undefined) config.makeError = result.wb_make_error;
+            if (result.wb_error_rate !== undefined) config.errorRate = result.wb_error_rate;
             createUI();
             injectScript();
         });
@@ -69,6 +73,12 @@
             <div class="wb-auto-body">
                 <label><input type="checkbox" id="wb-auto-toggle" ${config.enabled ? 'checked' : ''}> <span class="wb-label-text">Aktivovat</span></label>
                 <label><input type="checkbox" id="wb-auto-shrink" ${config.shrink ? 'checked' : ''}> <span class="wb-label-text">Zmenšit</span></label>
+                <label><input type="checkbox" id="wb-auto-error" ${config.makeError ? 'checked' : ''}> <span class="wb-label-text">Dělat chyby</span></label>
+                <div class="wb-auto-error-rate" id="wb-error-wrapper">
+                    <span class="wb-label-text">Šance na chybu:</span>
+                    <input type="number" id="wb-auto-error-rate" min="1" max="100" value="${config.errorRate}" style="width:42px; text-align:center;">
+                    <span class="wb-label-text">%</span>
+                </div>
                 <div class="wb-auto-speed" id="wb-speed-wrapper">
                     <span class="wb-label-text">Rychlost:</span>
                     <select id="wb-auto-speed" style="background:#333; color:#fff; border:1px solid #555; border-radius:3px; padding:2px;">
@@ -77,9 +87,10 @@
                         <option value="fast" ${config.speed === 'fast' ? 'selected' : ''}>Rychlá</option>
                     </select>
                 </div>
-            <div>
-                <div id="wb-auto-status">Načítání...</div>
-                <div id="wb-auto-debug" style="font-size:10px; color:#aaa; margin-top:5px; border-top:1px solid #444; padding-top:5px;"></div>
+                <div>
+                    <div id="wb-auto-status">Načítání...</div>
+                    <div id="wb-auto-debug" style="font-size:10px; color:#aaa; margin-top:5px; border-top:1px solid #444; padding-top:5px;"></div>
+                </div>
             </div>
         `;
         document.body.appendChild(ui);
@@ -100,6 +111,30 @@
                 ui.classList.remove('wb-shrunk');
             }
         });
+
+        document.getElementById('wb-auto-error').addEventListener('change', (e) => {
+            config.makeError = e.target.checked;
+            chrome.storage.local.set({ wb_make_error: config.makeError });
+        });
+
+        const errorRateInput = document.getElementById('wb-auto-error-rate');
+        if (errorRateInput) {
+            errorRateInput.addEventListener('change', (e) => {
+                let val = parseInt(e.target.value);
+                if (isNaN(val) || val < 1) val = 1;
+                if (val > 100) val = 100;
+                e.target.value = val;
+                config.errorRate = val;
+                chrome.storage.local.set({ wb_error_rate: config.errorRate });
+            });
+            errorRateInput.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value);
+                if (!isNaN(val) && val >= 1 && val <= 100) {
+                    config.errorRate = val;
+                    chrome.storage.local.set({ wb_error_rate: config.errorRate });
+                }
+            });
+        }
 
         document.getElementById('wb-auto-speed').addEventListener('change', (e) => {
             config.speed = e.target.value;
@@ -229,20 +264,38 @@
                 }
             }
 
-            const nextKeywords = ['dále', 'dale', 'další', 'dalsi', 'next', 'continue'];
-            const successBtn = document.querySelector('.btn-success:not([disabled]), .btn-primary:not([disabled]), .btn-block:not([disabled])');
-            if (successBtn && successBtn.offsetParent !== null) {
-                const text = successBtn.innerText.toLowerCase();
+            // Check specific WocaBee next buttons after mistake/info
+            const incorrectNextBtn = document.getElementById('incorrect-next-button');
+            if (incorrectNextBtn && incorrectNextBtn.offsetParent !== null && !incorrectNextBtn.disabled) {
+                updateStatus('Pokračuji (po chybě)...');
+                await sleep(getRandomDelay());
+                realClick(incorrectNextBtn);
+                return;
+            }
+
+            const continueBtn = document.getElementById('continueBtn');
+            if (continueBtn && continueBtn.offsetParent !== null && !continueBtn.disabled) {
+                updateStatus('Pokračuji...');
+                await sleep(getRandomDelay());
+                realClick(continueBtn);
+                return;
+            }
+
+            const nextKeywords = ['dále', 'dale', 'další', 'dalsi', 'next', 'continue', 'pokračovat', 'pokracovat'];
+            const actionButtons = Array.from(document.querySelectorAll('.btn-success:not([disabled]), .btn-primary:not([disabled]), .btn-info:not([disabled]), .btn-block:not([disabled])'))
+                .filter(b => b.offsetParent !== null);
+            for (let btn of actionButtons) {
+                const text = btn.innerText.toLowerCase();
                 if (nextKeywords.some(kw => text.includes(kw))) {
                     updateStatus('Pokračuji...');
                     await sleep(getRandomDelay());
-                    realClick(successBtn);
+                    realClick(btn);
                     return;
                 }
             }
 
             const nextBtn = document.getElementById('nextBtn');
-            if (nextBtn && nextBtn.offsetParent !== null) {
+            if (nextBtn && nextBtn.offsetParent !== null && !nextBtn.disabled) {
                 updateStatus('Pokračuji (nextBtn)...');
                 await sleep(getRandomDelay());
                 realClick(nextBtn);
@@ -254,7 +307,17 @@
             return;
         }
 
-        updateStatus('Typ cvičení: ' + active.type);
+        let isError = false;
+        if (config.makeError && (Math.random() * 100 < config.errorRate)) {
+            isError = true;
+        }
+
+        if (isError) {
+            updateStatus('Záměrná chyba...');
+            updateDebug('Záměrná chyba (' + config.errorRate + '%)');
+        } else {
+            updateStatus('Typ cvičení: ' + active.type);
+        }
 
         const answer = getAnswer(active.type);
         if (!answer && !['pexeso', 'findPair', 'matchPair', 'choosePicture', 'listenAndChoose'].includes(active.type)) {
@@ -262,81 +325,131 @@
             return;
         }
 
-        updateDebug('Odpověď: ' + (answer || 'N/A'));
+        if (!isError) {
+            updateDebug('Odpověď: ' + (answer || 'N/A'));
+        }
         await sleep(getRandomDelay());
 
         switch (active.type) {
             case 'translate':
-                fillInput('translateWordAnswer', answer);
+                fillInput('translateWordAnswer', isError ? makeWrongText(answer) : answer);
                 clickButton('translateWordSubmitBtn');
                 break;
             case 'describePicture':
-                fillInput('describePictureAnswer', answer);
+                fillInput('describePictureAnswer', isError ? makeWrongText(answer) : answer);
                 clickButton('describePictureSubmitBtn');
                 break;
             case 'transcribe':
-                fillInput('transcribeAnswerWord', answer);
+                fillInput('transcribeAnswerWord', isError ? makeWrongText(answer) : answer);
                 clickButton('transcribeSubmitBtn');
                 break;
             case 'translateFalling':
-                fillInput('translateFallingWordAnswer', answer);
+                fillInput('translateFallingWordAnswer', isError ? makeWrongText(answer) : answer);
                 clickButton('translateFallingWordSubmitBtn');
                 break;
             case 'complete':
-                await handleCompleteWord(answer);
+                await handleCompleteWord(answer, isError);
                 break;
             case 'choice':
-                handleChoice(answer, '#chooseWords .btn');
+                handleChoice(answer, '#chooseWords .btn', isError);
                 break;
             case 'listenAndChoose':
                 let skipBtn = document.getElementById('listenAndChooseSkipBtn');
-                if (skipBtn && skipBtn.offsetParent !== null) {
+                if (skipBtn && skipBtn.offsetParent !== null && !isError) {
                     realClick(skipBtn);
                 } else {
-                    handleChoice(answer, '#listenAndChooseWords .btn');
+                    handleChoice(answer, '#listenAndChooseWords .btn', isError);
                 }
                 break;
             case 'chooseSpelling':
-                handleChoice(answer, '#chooseSpellingWords .btn');
+                handleChoice(answer, '#chooseSpellingWords .btn', isError);
                 break;
             case 'pexeso':
-                await handlePexeso();
+                await handlePexeso(isError);
                 break;
             case 'oneOutOfMany':
-                handleChoice(answer, '#oneOutOfManyWords .btn');
+                handleChoice(answer, '#oneOutOfManyWords .btn', isError);
                 break;
             case 'findPair':
-                await handleFindPair();
+                await handleFindPair(isError);
                 break;
             case 'matchPair':
-                await handleMatchPair();
+                await handleMatchPair(isError);
                 break;
             case 'missing':
-                fillInput('missingWordAnswer', answer);
+                fillInput('missingWordAnswer', isError ? makeWrongText(answer) : answer);
                 clickButton('addMissingWordSubmitBtn');
                 break;
             case 'choosePicture':
-                await handleChoosePicture();
+                await handleChoosePicture(isError);
                 break;
             case 'arrangeWords':
-                await handleArrangeWords(answer);
+                await handleArrangeWords(answer, isError);
                 break;
         }
     }
 
-    async function handleChoosePicture() {
+    function makeWrongText(text) {
+        if (!text || text.length === 0) return 'x';
+        if (text.length === 1) return text.toLowerCase() === 'a' ? 'b' : 'a';
+
+        const rand = Math.random();
+        let arr = text.split('');
+
+        if (rand < 0.4 && arr.length > 2) {
+            let idx = Math.floor(Math.random() * (arr.length - 1));
+            let temp = arr[idx];
+            arr[idx] = arr[idx + 1];
+            arr[idx + 1] = temp;
+            if (arr.join('') !== text) return arr.join('');
+        }
+
+        if (rand < 0.8) {
+            let idx = Math.floor(Math.random() * arr.length);
+            let char = arr[idx].toLowerCase();
+            let replacement = 'x';
+            if (char === 'x') replacement = 'y';
+            else if (char === 'e') replacement = 'i';
+            else if (char === 'a') replacement = 'o';
+            arr[idx] = (arr[idx] === arr[idx].toUpperCase()) ? replacement.toUpperCase() : replacement;
+            return arr.join('');
+        }
+
+        if (arr.length > 3) {
+            let idx = Math.floor(Math.random() * arr.length);
+            arr.splice(idx, 1);
+            return arr.join('');
+        } else {
+            return text + 'x';
+        }
+    }
+
+    async function handleChoosePicture(isError = false) {
         const wordIdEl = document.getElementById('word_id');
         const targetWordId = wordIdEl ? wordIdEl.value : null;
         if (!targetWordId) return;
 
-        const images = Array.from(document.querySelectorAll('#choosePicture .picture'));
-        const correctImg = images.find(img => img.getAttribute('word_id') === targetWordId);
+        const images = Array.from(document.querySelectorAll('#choosePicture .picture'))
+            .filter(img => img.offsetParent !== null);
+        if (images.length === 0) return;
 
-        if (correctImg) {
-            updateDebug('Klikám na obrázek');
-            realClick(correctImg);
+        let targetImg = null;
+        if (isError && images.length > 1) {
+            const wrongImages = images.filter(img => img.getAttribute('word_id') !== targetWordId);
+            if (wrongImages.length > 0) {
+                targetImg = wrongImages[Math.floor(Math.random() * wrongImages.length)];
+            }
+        }
+
+        if (!targetImg) {
+            targetImg = images.find(img => img.getAttribute('word_id') === targetWordId);
+        }
+
+        if (targetImg) {
+            updateDebug(isError ? 'Klikám na špatný obrázek (chyba)' : 'Klikám na obrázek');
+            realClick(targetImg);
             await sleep(200);
-            realClick(correctImg);
+            realClick(targetImg);
         } else {
             updateDebug('Obrázek nenalezen');
         }
@@ -449,24 +562,49 @@
         }
     }
 
-    function handleChoice(answer, selector) {
+    function handleChoice(answer, selector, isError = false) {
+        const options = Array.from(document.querySelectorAll(selector))
+            .filter(o => o.offsetParent !== null && !o.disabled);
+        if (options.length === 0) return;
+
+        if (isError && options.length > 1) {
+            const wrongOptions = options.filter(o => !answer || o.innerText.trim().toLowerCase() !== answer.trim().toLowerCase());
+            if (wrongOptions.length > 0) {
+                const randomWrong = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+                realClick(randomWrong);
+                return;
+            }
+        }
+
         if (!answer) return;
-        const options = Array.from(document.querySelectorAll(selector));
         const opt = options.find(o => o.innerText.trim().toLowerCase() === answer.trim().toLowerCase());
         if (opt) realClick(opt);
     }
 
-    async function handleCompleteWord(answer) {
+    async function handleCompleteWord(answer, isError = false) {
         if (!answer) return;
         const patternEl = document.getElementById('completeWordAnswer');
         if (!patternEl) return;
         const pattern = patternEl.innerText.trim();
+
+        let errorInjected = false;
 
         for (let i = 0; i < pattern.length; i++) {
             if (pattern[i] === '_') {
                 const targetChar = answer[i];
                 let availableChars = Array.from(document.querySelectorAll('#characters .char, #characters .keyboardChar, #characters .btn'))
                     .filter(c => c.offsetParent !== null && c.style.visibility !== 'hidden' && c.getAttribute('is_hidden') !== '1');
+
+                if (isError && !errorInjected) {
+                    const wrongChars = availableChars.filter(c => c.innerText.trim() !== targetChar);
+                    if (wrongChars.length > 0) {
+                        const randomWrong = wrongChars[Math.floor(Math.random() * wrongChars.length)];
+                        realClick(randomWrong);
+                        errorInjected = true;
+                        await sleep(150);
+                        continue;
+                    }
+                }
 
                 const btn = availableChars.find(c => c.innerText.trim() === targetChar);
                 if (btn) {
@@ -480,13 +618,27 @@
         clickButton('completeWordSubmitBtn');
     }
 
-    async function handleFindPair() {
+    async function handleFindPair(isError = false) {
         const qWords = Array.from(document.querySelectorAll('#q_words .btn, .fp_q'))
             .filter(b => b.offsetParent !== null && !b.disabled && !b.classList.contains('btn-success-active'));
         const aWords = Array.from(document.querySelectorAll('#a_words .btn, .fp_a'))
             .filter(b => b.offsetParent !== null && !b.disabled && !b.classList.contains('btn-success-active'));
 
         if (qWords.length === 0 || aWords.length === 0) return;
+
+        if (isError) {
+            const qBtn = qWords[0];
+            const wId = qBtn.getAttribute('w_id');
+            const wrongABtn = aWords.find(btn => btn.getAttribute('w_id') !== wId);
+            if (wrongABtn) {
+                updateDebug('Chyba: Spojuji neshodná slova');
+                realClick(qBtn);
+                await sleep(300);
+                realClick(wrongABtn);
+                await sleep(100);
+                return;
+            }
+        }
 
         for (let i = 0; i < 3; i++) {
             const qBtn = qWords[i];
@@ -504,9 +656,23 @@
         }
     }
 
-    async function handleMatchPair() {
+    async function handleMatchPair(isError = false) {
         const btns = Array.from(document.querySelectorAll('#matchPairWords .btn'))
             .filter(b => b.offsetParent !== null && !b.disabled && !b.classList.contains('btn-success-active'));
+
+        if (isError && btns.length >= 2) {
+            let b1 = btns[0];
+            let wId1 = b1.getAttribute('w_id');
+            let b2 = btns.find(b => b.getAttribute('w_id') !== wId1);
+            if (b2) {
+                updateDebug('Chyba: Spojuji neshodná slova');
+                realClick(b1);
+                await sleep(300);
+                realClick(b2);
+                await sleep(100);
+                return;
+            }
+        }
 
         let groups = {};
         btns.forEach(b => {
@@ -528,14 +694,20 @@
         }
     }
 
-    async function handleArrangeWords(answer) {
+    async function handleArrangeWords(answer, isError = false) {
         if (!answer) return;
-        const words = answer.split(' ');
+        let words = answer.split(' ');
         const container = document.getElementById('sortableWords');
         if (!container) return;
 
         const items = Array.from(container.children);
         
+        if (isError && words.length > 1) {
+            let temp = words[0];
+            words[0] = words[1];
+            words[1] = temp;
+        }
+
         words.forEach(word => {
             const item = items.find(el => el.innerText.trim() === word);
             if (item) {
@@ -559,17 +731,43 @@
         });
     }
 
-    async function handlePexeso() {
+    async function handlePexeso(isError = false) {
         const cards = Array.from(document.querySelectorAll('.pexesoCardWrapper'));
         if (cards.length === 0) return;
 
-        let groups = {};
-        cards.forEach(card => {
-            const wId = card.getAttribute('w_id');
-            if (card.style.visibility !== 'hidden' && card.offsetParent !== null && card.getAttribute('marked') !== '1') {
-                if (!groups[wId]) groups[wId] = [];
-                groups[wId].push(card);
+        let available = cards.filter(card => 
+            card.style.visibility !== 'hidden' && 
+            card.offsetParent !== null && 
+            card.getAttribute('marked') !== '1'
+        );
+
+        if (isError && available.length >= 2) {
+            let c1 = available[0];
+            let wId1 = c1.getAttribute('w_id');
+            let c2 = available.find(c => c.getAttribute('w_id') !== wId1);
+            if (c2) {
+                const card1 = c1.querySelector('.pexesoFront');
+                const card2 = c2.querySelector('.pexesoFront');
+                if (card1 && card2) {
+                    updateDebug('Chyba: Otevírám neshodný pár');
+                    realClick(card1);
+                    await sleep(300);
+                    realClick(card1);
+                    await sleep(300);
+                    realClick(card2);
+                    await sleep(300);
+                    realClick(card2);
+                    await sleep(800);
+                    return;
+                }
             }
+        }
+
+        let groups = {};
+        available.forEach(card => {
+            const wId = card.getAttribute('w_id');
+            if (!groups[wId]) groups[wId] = [];
+            groups[wId].push(card);
         });
 
         for (let wId in groups) {
