@@ -161,6 +161,28 @@
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
+    function isSavingActive() {
+        const modal = document.getElementById('modalSavingPackage');
+        if (modal) {
+            if (modal.classList.contains('show') || modal.style.display === 'block' || (modal.offsetParent !== null && window.getComputedStyle(modal).display !== 'none')) {
+                return true;
+            }
+        }
+        const spinIcon = document.querySelector('#savingModalSecondaryIcon.fa-spin');
+        if (spinIcon && spinIcon.offsetParent !== null) {
+            return true;
+        }
+        const savingIcons = Array.from(document.querySelectorAll('.savingIcon, .fa-bounce'));
+        if (savingIcons.some(i => i.offsetParent !== null && window.getComputedStyle(i).display !== 'none')) {
+            return true;
+        }
+        return false;
+    }
+
+    function isElementVisible(el) {
+        return !!(el && el.offsetParent !== null && window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden');
+    }
+
     async function mainLoop() {
         if (!config.enabled || isRunning) return;
         isRunning = true;
@@ -177,36 +199,85 @@
                 }
             }
 
-            let progressValue = document.querySelector('#progressValue');
-            let is100 = progressValue && progressValue.textContent === '100%';
-            
-            // WocaBee sometimes uses a different element for progress
-            let diffDaysInfo = document.getElementById('diffDaysExtraWocaPointsInfo');
-            if (diffDaysInfo && diffDaysInfo.style.display !== 'none') is100 = true;
-            
-            let msgCompleted = document.getElementById('msgCompleted');
-            if (msgCompleted && msgCompleted.style.display !== 'none') is100 = true;
+            // 1. If WocaBee is currently saving results, WAIT! Never navigate away during saving.
+            if (isSavingActive()) {
+                updateStatus('Ukládám výsledky do WocaBee...');
+                return;
+            }
 
-            if (is100) {
-                let leaveBtnWrapper = document.getElementById('leaveBtnWrapper');
-                if (leaveBtnWrapper && leaveBtnWrapper.href) {
+            // 2. Check for problem words review screen (words with mistakes after homework)
+            const problemWordsNext = document.getElementById('problem-words-next');
+            if (isElementVisible(problemWordsNext)) {
+                if (!problemWordsNext.disabled) {
+                    updateStatus('Procházím problémová slova...');
+                    await sleep(getRandomDelay());
+                    realClick(problemWordsNext);
+                } else {
+                    updateStatus('Čekám na problémové slovo...');
+                }
+                return;
+            }
+
+            // 3. If quit screen is shown
+            const leaveHomeworkBtn = document.getElementById('leaveHomeworkBtn');
+            if (isElementVisible(leaveHomeworkBtn) && !isElementVisible(document.getElementById('doNotLeaveHomeworkBtn'))) {
+                updateStatus('Ukládám a odcházím...');
+                await sleep(getRandomDelay());
+                realClick(leaveHomeworkBtn);
+                return;
+            }
+
+            // 4. Check for completed package states
+            let progressValue = document.querySelector('#progressValue');
+            let is100 = progressValue && progressValue.textContent.trim() === '100%';
+            let diffDaysInfo = document.getElementById('diffDaysExtraWocaPointsInfo');
+            let isDiffDays = isElementVisible(diffDaysInfo);
+            let msgCompleted = document.getElementById('msgCompleted');
+            let isMsgCompleted = isElementVisible(msgCompleted);
+
+            let leaveBtnWrapper = document.getElementById('leaveBtnWrapper');
+            let isLeaveWrapperVisible = isElementVisible(leaveBtnWrapper);
+
+            let backBtn = document.getElementById('backBtn');
+            let isBackBtnVisible = isElementVisible(backBtn);
+
+            // In practice mode, WocaBee specifically shows #leaveBtnWrapper once points are saved
+            if (isLeaveWrapperVisible) {
+                updateStatus('Hotovo! Odcházím...');
+                await sleep(getRandomDelay());
+                if (leaveBtnWrapper.href) {
                     window.location.href = leaveBtnWrapper.href;
+                } else {
+                    realClick(leaveBtnWrapper);
+                }
+                return;
+            }
+
+            // In homework mode, once 100% or msgCompleted is reached:
+            if (isMsgCompleted || isDiffDays) {
+                if (isBackBtnVisible) {
+                    updateStatus('Hotovo! Vracím se zpět...');
+                    await sleep(getRandomDelay());
+                    realClick(backBtn);
+                    backBtn.click();
+                    setTimeout(() => {
+                        if (config.enabled && isElementVisible(backBtn)) {
+                            if (leaveBtnWrapper && leaveBtnWrapper.href) {
+                                window.location.href = leaveBtnWrapper.href;
+                            }
+                        }
+                    }, 2500);
                     return;
                 }
-                
-                let leaveBtn = document.getElementById('leaveBtn') || document.querySelector('.btn.btn-lg.btn-warning.btn-block');
-                if (leaveBtn) {
-                    let a = leaveBtn.closest('a');
-                    if (a && a.href) {
-                        window.location.href = a.href;
-                        return;
-                    } else {
-                        realClick(leaveBtn);
-                    }
-                    isRunning = false;
-                    setTimeout(mainLoop, 1000);
-                    return;
-                }
+                updateStatus('Hotovo! Čekám na tlačítko Zpět...');
+                return;
+            }
+
+            // If progress is 100% but msgCompleted / diffDays / leaveBtnWrapper is not yet visible,
+            // WocaBee is in the middle of sending or processing the save request. DO NOT LEAVE!
+            if (is100) {
+                updateStatus('Dokončeno 100 %, čekám na uložení...');
+                return;
             }
 
             await handleExercise();
