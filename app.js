@@ -37,15 +37,23 @@
         });
     }
 
-    const fixStyles = document.createElement('style');
-    fixStyles.innerHTML = `
+    const forceOpacity = document.createElement('style');
+    forceOpacity.innerHTML = `
+        * { 
+            opacity: 1 !important; 
+            visibility: visible !important; 
+        }
         .modal-backdrop { 
             display: none !important; 
             opacity: 0 !important; 
             pointer-events: none !important; 
         }
+        #wb-auto-panel.wb-shrunk {
+            opacity: 0.85 !important;
+            background-color: #2c3e50 !important;
+        }
     `;
-    (document.head || document.documentElement).appendChild(fixStyles);
+    (document.head || document.documentElement).appendChild(forceOpacity);
 
     init();
 
@@ -173,7 +181,7 @@
         if (spinIcon && spinIcon.offsetParent !== null) {
             return true;
         }
-        const savingIcons = Array.from(document.querySelectorAll('.savingIcon, .fa-bounce'));
+        const savingIcons = Array.from(document.querySelectorAll('.savingIcon'));
         if (savingIcons.some(i => i.offsetParent !== null && window.getComputedStyle(i).display !== 'none')) {
             return true;
         }
@@ -185,6 +193,11 @@
     }
 
     function findUnfinishedPackage() {
+        // Only run package discovery on the class packages page, never inside practice or homework!
+        if (!window.location.pathname.includes('/student/class') || window.location.pathname.includes('/practice') || window.location.pathname.includes('/homework')) {
+            return null;
+        }
+
         const table = document.getElementById('packagesTable');
         if (!table) {
             const btn = document.querySelector('.actionBtn.btn.btn-success.btn-block, .actionBtn.btn.btn-success');
@@ -277,10 +290,10 @@
 
                 // Look for the final exit button that WocaBee displays upon completion
                 const exitButtons = [
-                    document.getElementById('backBtn'),
-                    document.getElementById('leaveBtn'),
                     document.getElementById('leaveBtnWrapper'),
+                    document.getElementById('leaveBtn'),
                     document.getElementById('leaveHomeworkBtn'),
+                    document.getElementById('backBtn'),
                     document.getElementById('continueBtn')
                 ];
                 const finalBtn = exitButtons.find(b => isElementVisible(b));
