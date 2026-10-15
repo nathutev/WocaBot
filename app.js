@@ -16,8 +16,11 @@
             return;
         }
 
-        const observer = new MutationObserver(() => {
-            if (config.enabled && !isRunning) mainLoop();
+        const observer = new MutationObserver((mutations) => {
+            const hasExternalMutation = mutations.some(m => !m.target.closest || !m.target.closest('#wb-auto-panel'));
+            if (hasExternalMutation && config.enabled && !isRunning) {
+                mainLoop();
+            }
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
@@ -49,8 +52,11 @@
             pointer-events: none !important; 
         }
         #wb-auto-panel.wb-shrunk {
-            opacity: 0.85 !important;
-            background-color: #2c3e50 !important;
+            opacity: 0.3 !important;
+            background-color: transparent !important;
+        }
+        #wb-auto-panel.wb-shrunk:hover {
+            opacity: 1 !important;
         }
     `;
     (document.head || document.documentElement).appendChild(forceOpacity);
@@ -155,12 +161,12 @@
 
     function updateStatus(text) {
         const el = document.getElementById('wb-auto-status');
-        if (el) el.innerText = text;
+        if (el && el.innerText !== text) el.innerText = text;
     }
 
     function updateDebug(text) {
         const el = document.getElementById('wb-auto-debug');
-        if (el) el.innerText = text;
+        if (el && el.innerText !== text) el.innerText = text;
     }
 
     function getRandomDelay() {
@@ -209,14 +215,15 @@
         }
 
         // Inside #packagesTable, look for rows that are NOT done
-        const rows = Array.from(table.querySelectorAll('tr.pTableRow'));
+        const rows = Array.from(table.querySelectorAll('.pTableRow'));
         for (let row of rows) {
             const status = row.getAttribute('data-status');
-            if (status === 'done') continue; // Skip completed packages!
+            const isDone = status === 'done' || row.classList.contains('pkgCard--done') || !!row.querySelector('.pkgCard-tag--done');
+            if (isDone) continue; // Skip completed packages!
 
-            const btn = row.querySelector('.actionBtn.btn-success, .btn.btn-success');
+            const btn = row.querySelector('.actionBtn.btn-success, .btn.btn-success, .pkgBtn, a[id^="btnRun"]');
             if (btn && isElementVisible(btn)) {
-                const a = btn.closest('a');
+                const a = btn.tagName === 'A' ? btn : btn.closest('a');
                 return { el: btn, link: a ? a.href : null };
             }
         }
