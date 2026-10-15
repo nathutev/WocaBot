@@ -37,14 +37,15 @@
         });
     }
 
-    const forceOpacity = document.createElement('style');
-    forceOpacity.innerHTML = `
-        * { 
-            opacity: 1 !important; 
-            visibility: visible !important; 
+    const fixStyles = document.createElement('style');
+    fixStyles.innerHTML = `
+        .modal-backdrop { 
+            display: none !important; 
+            opacity: 0 !important; 
+            pointer-events: none !important; 
         }
     `;
-    (document.head || document.documentElement).appendChild(forceOpacity);
+    (document.head || document.documentElement).appendChild(fixStyles);
 
     init();
 
@@ -183,20 +184,52 @@
         return !!(el && el.offsetParent !== null && window.getComputedStyle(el).display !== 'none' && window.getComputedStyle(el).visibility !== 'hidden');
     }
 
+    function findUnfinishedPackage() {
+        const table = document.getElementById('packagesTable');
+        if (!table) {
+            const btn = document.querySelector('.actionBtn.btn.btn-success.btn-block, .actionBtn.btn.btn-success');
+            if (btn && isElementVisible(btn)) {
+                const a = btn.closest('a');
+                return { el: btn, link: a ? a.href : null };
+            }
+            return null;
+        }
+
+        // Inside #packagesTable, look for rows that are NOT done
+        const rows = Array.from(table.querySelectorAll('tr.pTableRow'));
+        for (let row of rows) {
+            const status = row.getAttribute('data-status');
+            if (status === 'done') continue; // Skip completed packages!
+
+            const btn = row.querySelector('.actionBtn.btn-success, .btn.btn-success');
+            if (btn && isElementVisible(btn)) {
+                const a = btn.closest('a');
+                return { el: btn, link: a ? a.href : null };
+            }
+        }
+        return null;
+    }
+
     async function mainLoop() {
         if (!config.enabled || isRunning) return;
         isRunning = true;
         
         try {
-            let startPackageBtn = document.querySelector('.actionBtn.btn.btn-success.btn-block');
-            if (startPackageBtn) {
-                let a = startPackageBtn.closest('a');
-                if (a && a.href) {
-                    window.location.href = a.href;
+            // Check if we are on the class page and need to start an unfinished package
+            const unfinished = findUnfinishedPackage();
+            if (unfinished) {
+                updateStatus('Spouštím balíček...');
+                await sleep(getRandomDelay());
+                if (unfinished.link) {
+                    window.location.href = unfinished.link;
                     return;
                 } else {
-                    realClick(startPackageBtn.parentElement || startPackageBtn);
+                    realClick(unfinished.el.parentElement || unfinished.el);
+                    return;
                 }
+            } else if (document.getElementById('packagesTable')) {
+                updateStatus('Všechny balíčky jsou hotové!');
+                return;
             }
 
             // 1. If WocaBee is currently saving results, WAIT! Never navigate away during saving.
@@ -235,48 +268,54 @@
             let msgCompleted = document.getElementById('msgCompleted');
             let isMsgCompleted = isElementVisible(msgCompleted);
 
-            let leaveBtnWrapper = document.getElementById('leaveBtnWrapper');
-            let isLeaveWrapperVisible = isElementVisible(leaveBtnWrapper);
-
-            let backBtn = document.getElementById('backBtn');
-            let isBackBtnVisible = isElementVisible(backBtn);
-
-            // In practice mode, WocaBee specifically shows #leaveBtnWrapper once points are saved
-            if (isLeaveWrapperVisible) {
-                updateStatus('Hotovo! Odcházím...');
-                await sleep(getRandomDelay());
-                if (leaveBtnWrapper.href) {
-                    window.location.href = leaveBtnWrapper.href;
-                } else {
-                    realClick(leaveBtnWrapper);
-                }
-                return;
-            }
-
-            // In homework mode, once 100% or msgCompleted is reached:
-            if (isMsgCompleted || isDiffDays) {
-                if (isBackBtnVisible) {
-                    updateStatus('Hotovo! Vracím se zpět...');
-                    await sleep(getRandomDelay());
-                    realClick(backBtn);
-                    backBtn.click();
-                    setTimeout(() => {
-                        if (config.enabled && isElementVisible(backBtn)) {
-                            if (leaveBtnWrapper && leaveBtnWrapper.href) {
-                                window.location.href = leaveBtnWrapper.href;
-                            }
-                        }
-                    }, 2500);
+            // Once 100% or completion message is reached, wait for the final button to appear and click it!
+            if (is100 || isMsgCompleted || isDiffDays) {
+                if (isSavingActive()) {
+                    updateStatus('Ukládám výsledky do WocaBee...');
                     return;
                 }
-                updateStatus('Hotovo! Čekám na tlačítko Zpět...');
-                return;
-            }
 
-            // If progress is 100% but msgCompleted / diffDays / leaveBtnWrapper is not yet visible,
-            // WocaBee is in the middle of sending or processing the save request. DO NOT LEAVE!
-            if (is100) {
-                updateStatus('Dokončeno 100 %, čekám na uložení...');
+                // Look for the final exit button that WocaBee displays upon completion
+                const exitButtons = [
+                    document.getElementById('backBtn'),
+                    document.getElementById('leaveBtn'),
+                    document.getElementById('leaveBtnWrapper'),
+                    document.getElementById('leaveHomeworkBtn'),
+                    document.getElementById('continueBtn')
+                ];
+                const finalBtn = exitButtons.find(b => isElementVisible(b));
+
+                if (finalBtn) {
+                    updateStatus('Dokončeno! Klikám na tlačítko pro návrat...');
+                    await sleep(getRandomDelay());
+
+                    const a = finalBtn.tagName === 'A' ? finalBtn : finalBtn.closest('a');
+                    if (a && a.href) {
+                        window.location.href = a.href;
+                        return;
+                    }
+
+                    realClick(finalBtn);
+                    finalBtn.click();
+
+                    // Fallback to ensure we return to the class packages page even if WocaBee handler doesn't redirect
+                    setTimeout(() => {
+                        if (config.enabled) {
+                            const leaveWrapper = document.getElementById('leaveBtnWrapper');
+                            if (leaveWrapper && leaveWrapper.href) {
+                                window.location.href = leaveWrapper.href;
+                            } else {
+                                const classId = new URLSearchParams(window.location.search).get('class_id');
+                                if (classId) {
+                                    window.location.href = 'https://www.wocabee.app/app/student/class/?class_id=' + classId;
+                                }
+                            }
+                        }
+                    }, 1500);
+                    return;
+                }
+
+                updateStatus('Hotovo! Čekám na tlačítko pro návrat...');
                 return;
             }
 
